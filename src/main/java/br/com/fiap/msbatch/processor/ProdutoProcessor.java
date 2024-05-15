@@ -9,7 +9,6 @@ public class ProdutoProcessor implements ItemProcessor<Produto,Produto> {
 
     @Override
     public Produto process(Produto item) throws Exception {
-
         item.setDataUpdate(LocalDateTime.now());
         System.out.println(item.toString());
         return item;

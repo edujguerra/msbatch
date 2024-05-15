@@ -76,10 +76,10 @@ public class BatchConfiguration {
                 .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
                 .dataSource(dataSource)
                 .sql("INSERT INTO tb_produtos "
-                    + "(id_produto, nm_produto, ds_descricao, qt_estoque, pr_produto)"
-                    + "values(:id, :nome, :descricao, :quantidade, :preco)"
+                    + "(id_produto, nm_produto, ds_descricao, qt_estoque, pr_produto, dt_update)"
+                    + "values(:id, :nome, :descricao, :quantidade, :preco, :dataUpdate)"
                     + "ON DUPLICATE KEY UPDATE nm_produto=:nome,"
-                    + " ds_descricao=:descricao, qt_estoque=:quantidade, pr_produto=:preco"
+                    + " ds_descricao=:descricao, qt_estoque=:quantidade, pr_produto=:preco, dt_update=:dataUpdate"
                 )
                 .build();
 
