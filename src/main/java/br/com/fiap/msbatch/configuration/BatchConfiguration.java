@@ -3,9 +3,9 @@ package br.com.fiap.msbatch.configuration;
 import br.com.fiap.msbatch.model.Produto;
 import br.com.fiap.msbatch.processor.ProdutoProcessor;
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobExecutionListener;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
-import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ItemProcessor;
@@ -26,11 +26,16 @@ import javax.sql.DataSource;
 public class BatchConfiguration {
 
     @Bean
-    public Job processarProduto(JobRepository jobRepository, Step step){
+    public JobExecutionListener jobExecutionListener() {
+        return new ProdutoJobExecutionListener();
+    }
 
+    @Bean
+    public Job processarProduto(JobRepository jobRepository, Step step, Step stepFim){
         return new JobBuilder("importProduto", jobRepository)
-                .incrementer(new RunIdIncrementer())
                 .start(step)
+                .next(stepFim)
+                .listener(jobExecutionListener())
                 .build();
     }
 
@@ -40,12 +45,12 @@ public class BatchConfiguration {
                      ItemReader<Produto> itemReader,
                      ItemWriter<Produto> itemWriter,
                      ItemProcessor<Produto,Produto> itemProcessor){
-
         return new StepBuilder("step", jobRepository)
                 .<Produto,Produto>chunk(20, platformTransactionManager)
                 .reader(itemReader)
-                .processor(itemProcessor)
                 .writer(itemWriter)
+                .processor(itemProcessor)
+                .allowStartIfComplete(true)
                 .build();
     }
 
@@ -55,7 +60,7 @@ public class BatchConfiguration {
         fieldSetMapper.setTargetType(Produto.class);
 
         return new FlatFileItemReaderBuilder<Produto>()
-                .name("presonItemReader")
+                .name("personItemReader")
                 .resource(new ClassPathResource("produto.csv"))
                 .delimited()
                 .names("id", "nome", "descricao", "quantidade", "preco")
@@ -65,6 +70,8 @@ public class BatchConfiguration {
 
     @Bean
     public ItemWriter<Produto> itemWriter(DataSource dataSource){
+        System.out.println("insere");
+
         return new JdbcBatchItemWriterBuilder<Produto>()
                 .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
                 .dataSource(dataSource)
@@ -82,4 +89,5 @@ public class BatchConfiguration {
     public ItemProcessor<Produto, Produto> itemProcessor(){
         return new ProdutoProcessor();
     }
+
 }

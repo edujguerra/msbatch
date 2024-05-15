@@ -11,8 +11,8 @@ public class ProdutoProcessor implements ItemProcessor<Produto,Produto> {
     public Produto process(Produto item) throws Exception {
 
         item.setDataUpdate(LocalDateTime.now());
+        System.out.println(item.toString());
         return item;
     }
-
 
 }
