@@ -2,6 +2,7 @@ package br.com.fiap.msbatch.configuration;
 
 import br.com.fiap.msbatch.model.Produto;
 import br.com.fiap.msbatch.processor.ProdutoProcessor;
+import br.com.fiap.msbatch.utils.Utilitarios;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecutionListener;
 import org.springframework.batch.core.Step;
@@ -15,24 +16,37 @@ import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourc
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
+import java.util.Random;
 
+@PropertySource("classpath:application.yml")
+@ConfigurationProperties(prefix = "data")
 @Configuration
 public class BatchConfiguration {
 
+    private String path;
+    private String arquivo;
+
     @Bean
     public JobExecutionListener jobExecutionListener() {
-        return new ProdutoJobExecutionListener();
+        Utilitarios util = new Utilitarios();
+        this.arquivo = util.getNomeArquivo(this.getPath());
+        return new ProdutoJobExecutionListener(this.arquivo);
     }
 
     @Bean
     public Job processarProduto(JobRepository jobRepository, Step step, Step stepFim){
-        return new JobBuilder("importProduto", jobRepository)
+        Random random = new Random();
+
+        return new JobBuilder("importProduto" + random.toString(), jobRepository)
                 .start(step)
                 .next(stepFim)
                 .listener(jobExecutionListener())
@@ -61,7 +75,7 @@ public class BatchConfiguration {
 
         return new FlatFileItemReaderBuilder<Produto>()
                 .name("personItemReader")
-                .resource(new ClassPathResource("produto.csv"))
+                .resource(  new FileSystemResource(this.arquivo))
                 .delimited()
                 .names("id", "nome", "descricao", "quantidade", "preco")
                 .fieldSetMapper(fieldSetMapper)
@@ -70,8 +84,6 @@ public class BatchConfiguration {
 
     @Bean
     public ItemWriter<Produto> itemWriter(DataSource dataSource){
-        System.out.println("insere");
-
         return new JdbcBatchItemWriterBuilder<Produto>()
                 .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
                 .dataSource(dataSource)
@@ -88,6 +100,14 @@ public class BatchConfiguration {
     @Bean
     public ItemProcessor<Produto, Produto> itemProcessor(){
         return new ProdutoProcessor();
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
     }
 
 }
