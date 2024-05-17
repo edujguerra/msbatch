@@ -17,7 +17,7 @@ public class Utilitarios {
                 }
             }
         }
-        return null; // Arquivo não encontrado
+        return null;
     }
 
     public String getNomeArquivo(String path) {

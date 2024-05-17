@@ -3,6 +3,7 @@ package br.com.fiap.msbatch.configuration;
 import br.com.fiap.msbatch.model.Produto;
 import br.com.fiap.msbatch.processor.ProdutoProcessor;
 import br.com.fiap.msbatch.utils.Utilitarios;
+import lombok.Data;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecutionListener;
 import org.springframework.batch.core.Step;
@@ -20,13 +21,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 import java.util.Random;
 
+@Data
 @PropertySource("classpath:application.yml")
 @ConfigurationProperties(prefix = "data")
 @Configuration
@@ -37,20 +38,30 @@ public class BatchConfiguration {
 
     @Bean
     public JobExecutionListener jobExecutionListener() {
-        Utilitarios util = new Utilitarios();
-        this.arquivo = util.getNomeArquivo(this.getPath());
-        return new ProdutoJobExecutionListener(this.arquivo);
+        try {
+            Utilitarios util = new Utilitarios();
+            this.arquivo = util.getNomeArquivo(this.getPath());
+            return new ProdutoJobExecutionListener(this.arquivo);
+        } catch (Exception err) {
+            System.out.println("Problema Execution Listener : " + err.getMessage());
+            return null;
+        }
     }
 
     @Bean
     public Job processarProduto(JobRepository jobRepository, Step step, Step stepFim){
-        Random random = new Random();
+        try {
+            Random random = new Random();
 
-        return new JobBuilder("importProduto" + random.toString(), jobRepository)
-                .start(step)
-                .next(stepFim)
-                .listener(jobExecutionListener())
-                .build();
+            return new JobBuilder("importProduto" + random.nextInt(10000), jobRepository)
+                    .start(step)
+                    .next(stepFim)
+                    .listener(jobExecutionListener())
+                    .build();
+        } catch (Exception err) {
+            System.out.println("Problema processar produto : " + err.getMessage());
+            return null;
+        }
     }
 
     @Bean
@@ -59,13 +70,18 @@ public class BatchConfiguration {
                      ItemReader<Produto> itemReader,
                      ItemWriter<Produto> itemWriter,
                      ItemProcessor<Produto,Produto> itemProcessor){
-        return new StepBuilder("step", jobRepository)
-                .<Produto,Produto>chunk(20, platformTransactionManager)
-                .reader(itemReader)
-                .writer(itemWriter)
-                .processor(itemProcessor)
-                .allowStartIfComplete(true)
-                .build();
+        try {
+            return new StepBuilder("step", jobRepository)
+                    .<Produto, Produto>chunk(20, platformTransactionManager)
+                    .reader(itemReader)
+                    .writer(itemWriter)
+                    .processor(itemProcessor)
+                    .allowStartIfComplete(true)
+                    .build();
+        } catch (Exception err) {
+            System.out.println("Problema step builder : " + err.getMessage());
+            return null;
+        }
     }
 
     @Bean
@@ -73,41 +89,41 @@ public class BatchConfiguration {
         BeanWrapperFieldSetMapper<Produto> fieldSetMapper = new BeanWrapperFieldSetMapper<>();
         fieldSetMapper.setTargetType(Produto.class);
 
-        return new FlatFileItemReaderBuilder<Produto>()
-                .name("personItemReader")
-                .resource(  new FileSystemResource(this.arquivo))
-                .delimited()
-                .names("id", "nome", "descricao", "quantidade", "preco")
-                .fieldSetMapper(fieldSetMapper)
-                .build();
+        try {
+            return new FlatFileItemReaderBuilder<Produto>()
+                    .name("personItemReader")
+                    .resource(new FileSystemResource(this.arquivo))
+                    .delimited()
+                    .names("id", "nome", "descricao", "quantidade", "preco")
+                    .fieldSetMapper(fieldSetMapper)
+                    .build();
+        } catch (Exception err) {
+            System.out.println("Problema item reader : " + err.getMessage());
+            return null;
+        }
     }
 
     @Bean
     public ItemWriter<Produto> itemWriter(DataSource dataSource){
-        return new JdbcBatchItemWriterBuilder<Produto>()
-                .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
-                .dataSource(dataSource)
-                .sql("INSERT INTO tb_produtos "
-                    + "(id_produto, nm_produto, ds_descricao, qt_estoque, pr_produto, dt_update)"
-                    + "values(:id, :nome, :descricao, :quantidade, :preco, :dataUpdate)"
-                    + "ON DUPLICATE KEY UPDATE nm_produto=:nome,"
-                    + " ds_descricao=:descricao, qt_estoque=:quantidade, pr_produto=:preco, dt_update=:dataUpdate"
-                )
-                .build();
-
+        try {
+            return new JdbcBatchItemWriterBuilder<Produto>()
+                    .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
+                    .dataSource(dataSource)
+                    .sql("INSERT INTO tb_produtos "
+                        + "(id_produto, nm_produto, ds_descricao, qt_estoque, pr_produto, dt_update)"
+                        + "values(:id, :nome, :descricao, :quantidade, :preco, :dataUpdate)"
+                        + "ON DUPLICATE KEY UPDATE nm_produto=:nome,"
+                        + " ds_descricao=:descricao, qt_estoque=:quantidade, pr_produto=:preco, dt_update=:dataUpdate"
+                    )
+                    .build();
+        } catch (Exception err) {
+            System.out.println("Problema step writer : " + err.getMessage());
+            return null;
+        }
     }
 
     @Bean
     public ItemProcessor<Produto, Produto> itemProcessor(){
         return new ProdutoProcessor();
     }
-
-    public String getPath() {
-        return path;
-    }
-
-    public void setPath(String path) {
-        this.path = path;
-    }
-
 }
